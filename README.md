@@ -2,6 +2,8 @@
 
 A polished, responsive calculator with keyboard support, parentheses, percentages, and safe expression parsing.
 
+<img src="screenshot.png" alt="Orbit Calculator website preview" width="720">
+
 ## Features
 
 - Keyboard and on-screen controls
