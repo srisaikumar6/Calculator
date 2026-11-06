@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101522">
+    <meta name="description" content="A clean, keyboard-friendly calculator for everyday math.">
+    <title>Orbit Calculator</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #101522;
+        color: #f5f7fb;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        --muted: #9ba5b8;
+        --panel: #1a2131;
+        --key: #252e40;
+        --accent: #a7f3d0;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 28px 18px;
+        background:
+          radial-gradient(ellipse at 18% 20%, #263c4b 0, transparent 35%),
+          radial-gradient(ellipse at 85% 85%, #263047 0, transparent 32%),
+          #101522;
+      }
+
+      .calculator { width: min(100%, 390px); }
+      .topline { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 16px; }
+      .brand { display: flex; align-items: center; gap: 10px; font-size: .95rem; font-weight: 700; letter-spacing: .02em; }
+      .brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 12px; color: #14251f; background: var(--accent); font-size: 1.15rem; }
+      .mode { color: var(--muted); font-size: .77rem; }
+      .shell { padding: 22px; border: 1px solid #ffffff12; border-radius: 28px; background: linear-gradient(145deg, #1d2535, #171d2a); box-shadow: 0 30px 90px #0007; }
+      .screen { display: flex; min-height: 142px; flex-direction: column; justify-content: flex-end; align-items: flex-end; overflow: hidden; padding: 8px 3px 22px; }
+      .expression { width: 100%; min-height: 24px; overflow: hidden; color: var(--muted); text-align: right; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
+      .display { width: 100%; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(2.4rem, 11vw, 3.65rem); font-weight: 500; letter-spacing: -.055em; font-variant-numeric: tabular-nums; }
+      .message { min-height: 22px; margin: 0 2px 10px; color: #ff9a9a; text-align: right; font-size: .8rem; }
+      .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+      button { min-height: 62px; border: 1px solid #ffffff08; border-radius: 18px; color: #f4f6fb; background: var(--key); font: inherit; font-size: 1.12rem; font-weight: 600; cursor: pointer; transition: background .16s ease, transform .16s ease, box-shadow .16s ease; }
+      button:hover { transform: translateY(-2px); background: #303b50; box-shadow: 0 8px 18px #0003; }
+      button:active { transform: translateY(0); }
+      button:focus-visible { outline: 3px solid #a7f3d088; outline-offset: 2px; }
+      .utility { color: #c5cede; background: #31394a; }
+      .operator { color: var(--accent); background: #263b3b; }
+      .equals { color: #10251d; background: var(--accent); font-size: 1.35rem; }
+      .equals:hover { background: #c1f8df; }
+      .zero { grid-column: span 2; }
+      .hint { margin: 16px 0 0; color: #778297; text-align: center; font-size: .74rem; }
+
+      @media (max-width: 380px) {
+        .shell { padding: 16px; }
+        button { min-height: 56px; border-radius: 15px; }
+      }
+      @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+    </style>
+  </head>
+  <body>
+    <main class="calculator" aria-label="Calculator">
+      <header class="topline">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">⌁</span> Orbit Calculator</div>
+        <span class="mode">STANDARD</span>
+      </header>
+      <section class="shell">
+        <div class="screen" aria-live="polite" aria-atomic="true">
+          <div class="expression" id="expression"></div>
+          <output class="display" id="display">0</output>
+        </div>
+        <p class="message" id="message" role="status"></p>
+        <div class="keys" aria-label="Calculator keys">
+          <button class="utility" data-action="clear" aria-label="Clear all">AC</button>
+          <button class="utility" data-action="delete" aria-label="Delete last character">DEL</button>
+          <button class="utility" data-value="%" aria-label="Percent">%</button>
+          <button class="operator" data-value="/" aria-label="Divide">÷</button>
+          <button data-value="7">7</button><button data-value="8">8</button><button data-value="9">9</button>
+          <button class="operator" data-value="*" aria-label="Multiply">×</button>
+          <button data-value="4">4</button><button data-value="5">5</button><button data-value="6">6</button>
+          <button class="operator" data-value="-" aria-label="Subtract">−</button>
+          <button data-value="1">1</button><button data-value="2">2</button><button data-value="3">3</button>
+          <button class="operator" data-value="+" aria-label="Add">+</button>
+          <button class="zero" data-value="0">0</button><button data-value=".">.</button>
+          <button class="equals" data-action="equals" aria-label="Equals">=</button>
+        </div>
+      </section>
+      <p class="hint">Use your keyboard · Enter to calculate · Esc to clear</p>
+    </main>
+    <script>
+      const display = document.querySelector("#display");
+      const expressionLine = document.querySelector("#expression");
+      const message = document.querySelector("#message");
+      let expression = "";
+      let justEvaluated = false;
+
+      function render() {
+        display.textContent = expression || "0";
+      }
+
+      function append(value) {
+        message.textContent = "";
+        if (justEvaluated && /[0-9.(]/.test(value)) expression = "";
+        justEvaluated = false;
+        expression += value;
+        render();
+      }
+
+      function clear() {
+        expression = "";
+        expressionLine.textContent = "";
+        message.textContent = "";
+        justEvaluated = false;
+        render();
+      }
+
+      function tokenize(source) {
+        const compact = source.replace(/\s+/g, "");
+        const tokens = compact.match(/\d*\.?\d+|[()+*/%-]/g) || [];
+        if (tokens.join("") !== compact) throw new Error("Check the expression");
+        return tokens;
+      }
+
+      function calculate(source) {
+        const tokens = tokenize(source);
+        let position = 0;
+
+        function parsePrimary() {
+          const token = tokens[position++];
+          if (token === "(") {
+            const value = parseSum();
+            if (tokens[position++] !== ")") throw new Error("Add a closing parenthesis");
+            return value;
+          }
+          if (token === undefined || !/^(?:\d*\.?\d+)$/.test(token)) throw new Error("Check the expression");
+          return Number(token);
+        }
+
+        function parsePercent() {
+          let value = parsePrimary();
+          while (tokens[position] === "%") {
+            position++;
+            value /= 100;
+          }
+          return value;
+        }
+
+        function parseUnary() {
+          if (tokens[position] === "+") { position++; return parseUnary(); }
+          if (tokens[position] === "-") { position++; return -parseUnary(); }
+          return parsePercent();
+        }
+
+        function parseProduct() {
+          let value = parseUnary();
+          while (tokens[position] === "*" || tokens[position] === "/") {
+            const operator = tokens[position++];
+            const right = parseUnary();
+            if (operator === "/" && right === 0) throw new Error("Cannot divide by zero");
+            value = operator === "*" ? value * right : value / right;
+          }
+          return value;
+        }
+
+        function parseSum() {
+          let value = parseProduct();
+          while (tokens[position] === "+" || tokens[position] === "-") {
+            const operator = tokens[position++];
+            const right = parseProduct();
+            value = operator === "+" ? value + right : value - right;
+          }
+          return value;
+        }
+
+        const result = parseSum();
+        if (position !== tokens.length || !Number.isFinite(result)) throw new Error("Check the expression");
+        return Number(result.toPrecision(12)).toString();
+      }
+
+      function equals() {
+        if (!expression) return;
+        try {
+          const result = calculate(expression);
+          expressionLine.textContent = expression + " =";
+          expression = result;
+          justEvaluated = true;
+          message.textContent = "";
+          render();
+        } catch (error) {
+          message.textContent = error.message;
+        }
+      }
+
+      document.querySelector(".keys").addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (!button) return;
+        if (button.dataset.action === "clear") clear();
+        else if (button.dataset.action === "delete") {
+          expression = expression.slice(0, -1);
+          message.textContent = "";
+          justEvaluated = false;
+          render();
+        } else if (button.dataset.action === "equals") equals();
+        else append(button.dataset.value);
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (/^[0-9()+\-*/%.]$/.test(event.key)) { event.preventDefault(); append(event.key); }
+        else if (event.key === "Enter" || event.key === "=") { event.preventDefault(); equals(); }
+        else if (event.key === "Backspace") { expression = expression.slice(0, -1); render(); }
+        else if (event.key === "Escape") clear();
+      });
+    </script>
+  </body>
+</html>
